@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle Patatoune</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Baloo 2',cursive;
+  background:linear-gradient(160deg,#87CEEB 0%,#B0E8FF 40%,#98E878 100%);
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:12px 10px;overflow-x:hidden;
+}
+.bg-deco{position:fixed;pointer-events:none;font-size:1.8em;opacity:.15;animation:drift linear infinite;}
+@keyframes drift{0%{transform:translateY(0) rotate(0deg);}100%{transform:translateY(-110vh) rotate(360deg);}}
+h1{color:#CC0000;font-size:2.2em;text-shadow:3px 3px 0 #FFD700,5px 5px 0 rgba(0,0,0,.1);letter-spacing:1px;margin-bottom:2px;}
+.subtitle{color:#555;font-size:.95em;margin-bottom:10px;text-align:center;}
+
+/* difficulty buttons */
+.diff-row{display:flex;gap:8px;margin-bottom:12px;}
+.diff-btn{
+  background:white;color:#CC0000;border:3px solid #CC0000;
+  padding:6px 16px;border-radius:30px;font-family:'Baloo 2',cursive;font-size:.9em;
+  cursor:pointer;transition:all .15s;
+}
+.diff-btn.active,.diff-btn:hover{background:#CC0000;color:white;}
+
+.hint-btn{
+  background:#FF9900;color:white;border:none;
+  padding:7px 18px;border-radius:30px;font-family:'Baloo 2',cursive;font-size:.9em;
+  cursor:pointer;box-shadow:0 4px 0 #CC6600;transition:transform .1s;margin-bottom:12px;
+}
+.hint-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #CC6600;}
+
+.hint-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:center;justify-content:center;}
+.hint-overlay.show{display:flex;}
+.hint-img{border-radius:20px;box-shadow:0 0 40px rgba(255,215,0,.8);border:5px solid #FFD700;}
+
+/* progress */
+.progress-bar-wrap{width:280px;background:rgba(255,255,255,.5);border-radius:20px;height:16px;margin-bottom:10px;border:2px solid #FFD700;overflow:hidden;}
+.progress-bar{height:100%;background:linear-gradient(90deg,#FF6699,#FF9900,#FFD700);border-radius:20px;transition:width .4s ease;width:0%;}
+
+.puzzle-wrap{background:rgba(255,255,255,.45);border-radius:18px;padding:10px;border:4px dashed #FFD700;box-shadow:0 6px 20px rgba(0,0,0,.15);margin-bottom:14px;}
+.puzzle-grid{display:grid;gap:3px;}
+
+.drop-zone{border-radius:8px;border:2px dashed #bbb;background:rgba(255,255,255,.3);position:relative;overflow:hidden;transition:border-color .2s,box-shadow .2s;}
+.drop-zone .ghost{position:absolute;inset:0;background-size:cover;opacity:.22;border-radius:7px;pointer-events:none;}
+.drop-zone.hover{border-color:#FFD700;box-shadow:0 0 0 3px rgba(255,215,0,.5);}
+.drop-zone.correct{border:2px solid #22CC55;box-shadow:0 0 10px rgba(34,204,85,.5);}
+.drop-zone.wrong{border:2px solid #FF4444;box-shadow:0 0 8px rgba(255,68,68,.4);}
+
+.tray-label{color:#6B35C4;font-size:.95em;margin-bottom:6px;text-align:center;}
+.tray{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;background:rgba(255,255,255,.5);padding:10px;border-radius:16px;border:4px solid #FF6699;box-shadow:0 4px 12px rgba(0,0,0,.1);min-height:70px;max-width:360px;}
+
+.piece{border-radius:8px;cursor:grab;overflow:hidden;box-shadow:3px 3px 10px rgba(0,0,0,.25);border:2px solid white;transition:transform .15s,box-shadow .15s;flex-shrink:0;-webkit-user-select:none;user-select:none;}
+.piece:hover{transform:scale(1.08) rotate(2deg);box-shadow:5px 5px 14px rgba(0,0,0,.3);}
+.piece.dragging{opacity:.35;cursor:grabbing;}
+
+.celebration{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;flex-direction:column;align-items:center;justify-content:center;}
+.celebration.show{display:flex;}
+.cel-box{background:white;border-radius:30px;padding:30px 36px;text-align:center;border:6px solid #FFD700;animation:pop .5s cubic-bezier(.36,.07,.19,.97);box-shadow:0 0 50px rgba(255,215,0,.7);}
+@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.08)}100%{transform:scale(1)}}
+.cel-emoji{font-size:3em;}
+.cel-title{font-size:1.9em;color:#CC0000;margin:6px 0;}
+.cel-sub{color:#6B35C4;font-size:1em;margin-bottom:12px;}
+.stars-row{display:flex;gap:8px;justify-content:center;margin:6px 0;}
+.star-el{font-size:1.6em;animation:starPop .4s ease forwards;opacity:0;}
+@keyframes starPop{to{opacity:1;transform:scale(1) rotate(15deg)}}
+.btn-play{background:#CC0000;color:white;border:none;padding:11px 28px;border-radius:30px;font-family:'Baloo 2',cursive;font-size:1.05em;cursor:pointer;box-shadow:0 4px 0 #880000;transition:transform .1s;margin-top:8px;}
+.btn-play:active{transform:translateY(3px);box-shadow:0 1px 0 #880000;}
+
+.confetti-piece{position:fixed;z-index:150;pointer-events:none;animation:confFall linear forwards;}
+@keyframes confFall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+
+<h1>🐾 Patatoune 🐾</h1>
+<p class="subtitle">Assemble le puzzle pour retrouver Patatoune !</p>
+
+<div class="diff-row">
+  <button class="diff-btn" data-grid="2">2×2</button>
+  <button class="diff-btn" data-grid="3">3×3</button>
+  <button class="diff-btn active" data-grid="4">4×4</button>
+</div>
+
+<button class="hint-btn" id="hintBtn">🔍 Voir l'image</button>
+
+<div class="hint-overlay" id="hintOverlay">
+  <svg class="hint-img" width="300" height="300" id="hintSVG"></svg>
+</div>
+
+<div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="puzzle-wrap">
+  <div class="puzzle-grid" id="grid"></div>
+</div>
+
+<p class="tray-label">🧩 Fais glisser les pièces !</p>
+<div class="tray" id="tray"></div>
+
+<div class="celebration" id="cel">
+  <div class="cel-box">
+    <div class="cel-emoji">🎉🥔🎉</div>
+    <div class="cel-title">Bravo !</div>
+    <div class="cel-sub">Tu as retrouvé Patatoune !</div>
+    <div class="stars-row">
+      <span class="star-el" style="animation-delay:.15s">⭐</span>
+      <span class="star-el" style="animation-delay:.3s">⭐</span>
+      <span class="star-el" style="animation-delay:.45s">⭐</span>
+    </div>
+    <button class="btn-play" id="replayBtn">🔄 Rejouer !</button>
+  </div>
+</div>
+
+<script>
+const W = 300, H = 300;
+
+function buildScene(svg) {
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svg.innerHTML = `
+<rect width="300" height="195" fill="#87CEEB"/>
+<rect y="195" width="300" height="105" fill="#6DC24B"/>
+<rect y="193" width="300" height="10" fill="#5AAF38"/>
+<circle cx="258" cy="42" r="28" fill="#FFD700"/>
+<circle cx="258" cy="42" r="22" fill="#FFE44D"/>
+${[0,45,90,135,180,225,270,315].map(a=>{const r=Math.PI*a/180,x1=258+30*Math.cos(r),y1=42+30*Math.sin(r),x2=258+42*Math.cos(r),y2=42+42*Math.sin(r);return`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>`;}).join('')}
+<g opacity="0.95"><ellipse cx="55" cy="45" rx="30" ry="18" fill="white"/><ellipse cx="75" cy="38" rx="28" ry="17" fill="white"/><ellipse cx="38" cy="50" rx="20" ry="13" fill="white"/></g>
+<g opacity="0.95"><ellipse cx="195" cy="55" rx="25" ry="15" fill="white"/><ellipse cx="215" cy="48" rx="22" ry="14" fill="white"/></g>
+<g fill="#FF9999" opacity="0.55">
+  <circle cx="28" cy="215" r="7"/><circle cx="22" cy="206" r="4"/><circle cx="29" cy="204" r="4"/><circle cx="37" cy="206" r="4"/>
+  <circle cx="268" cy="225" r="7"/><circle cx="262" cy="216" r="4"/><circle cx="269" cy="214" r="4"/><circle cx="277" cy="216" r="4"/>
+  <circle cx="80" cy="238" r="5"/><circle cx="75" cy="232" r="3"/><circle cx="81" cy="230" r="3"/><circle cx="87" cy="232" r="3"/>
+  <circle cx="220" cy="242" r="5"/><circle cx="215" cy="236" r="3"/><circle cx="221" cy="234" r="3"/><circle cx="227" cy="236" r="3"/>
+</g>
+<ellipse cx="150" cy="282" rx="52" ry="10" fill="#00000022"/>
+<ellipse cx="127" cy="268" rx="20" ry="14" fill="#E8B05A"/>
+<ellipse cx="173" cy="268" rx="20" ry="14" fill="#E8B05A"/>
+<ellipse cx="127" cy="271" rx="16" ry="8" fill="#D49A45"/>
+<ellipse cx="173" cy="271" rx="16" ry="8" fill="#D49A45"/>
+<ellipse cx="127" cy="275" rx="20" ry="9" fill="#CC0000"/>
+<ellipse cx="173" cy="275" rx="20" ry="9" fill="#CC0000"/>
+<ellipse cx="150" cy="210" rx="68" ry="72" fill="#F4C472"/>
+<ellipse cx="162" cy="198" rx="46" ry="52" fill="#F9D990" opacity="0.45"/>
+<ellipse cx="108" cy="220" rx="12" ry="9" fill="#E8B05A" opacity="0.5"/>
+<ellipse cx="192" cy="215" rx="10" ry="8" fill="#E8B05A" opacity="0.4"/>
+<ellipse cx="90" cy="220" rx="22" ry="13" fill="#F4C472" transform="rotate(-35 90 220)"/>
+<ellipse cx="210" cy="220" rx="22" ry="13" fill="#F4C472" transform="rotate(35 210 220)"/>
+<circle cx="76" cy="210" r="10" fill="#F4C472"/>
+<circle cx="224" cy="210" r="10" fill="#F4C472"/>
+<circle cx="150" cy="215" r="24" fill="#CC0000"/>
+<circle cx="150" cy="215" r="20" fill="#FF3333"/>
+<circle cx="150" cy="215" r="16" fill="#CC0000"/>
+<circle cx="150" cy="214" r="7" fill="#FFD700"/>
+<circle cx="143" cy="206" r="4" fill="#FFD700"/>
+<circle cx="150" cy="204" r="4" fill="#FFD700"/>
+<circle cx="157" cy="206" r="4" fill="#FFD700"/>
+<ellipse cx="150" cy="155" rx="58" ry="58" fill="#F4C472"/>
+<ellipse cx="165" cy="143" rx="38" ry="38" fill="#F9D990" opacity="0.4"/>
+<ellipse cx="150" cy="122" rx="55" ry="20" fill="#CC0000"/>
+<rect x="96" y="104" width="108" height="28" rx="8" fill="#CC0000"/>
+<ellipse cx="150" cy="106" rx="50" ry="24" fill="#FF3333"/>
+<ellipse cx="150" cy="122" rx="44" ry="9" fill="#55AAFF" opacity="0.7"/>
+<rect x="96" y="115" width="108" height="6" fill="#FFD700" opacity="0.8"/>
+<circle cx="150" cy="96" r="10" fill="#FFD700"/>
+<circle cx="150" cy="96" r="7" fill="#CC0000"/>
+<circle cx="132" cy="158" r="15" fill="white"/>
+<circle cx="168" cy="158" r="15" fill="white"/>
+<circle cx="134" cy="159" r="9" fill="#5C3A1E"/>
+<circle cx="170" cy="159" r="9" fill="#5C3A1E"/>
+<circle cx="137" cy="155" r="4" fill="white"/>
+<circle cx="173" cy="155" r="4" fill="white"/>
+<path d="M121 147 Q132 141 143 147" stroke="#8B5E3C" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M157 147 Q168 141 179 147" stroke="#8B5E3C" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="150" cy="172" rx="8" ry="6" fill="#E89050"/>
+<ellipse cx="148" cy="171" rx="3" ry="2" fill="#F4A866" opacity="0.6"/>
+<path d="M 126 182 Q 150 202 174 182" stroke="#8B4513" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M 135 186 Q 150 198 165 186 L 165 190 Q 150 202 135 190 Z" fill="white" opacity="0.8"/>
+<ellipse cx="116" cy="174" rx="12" ry="8" fill="#FF9999" opacity="0.5"/>
+<ellipse cx="184" cy="174" rx="12" ry="8" fill="#FF9999" opacity="0.5"/>
+<text x="18" y="90" font-size="18" opacity="0.75">⭐</text>
+<text x="265" y="105" font-size="14" opacity="0.7">✨</text>
+<text x="12" y="175" font-size="14" opacity="0.5">🐾</text>
+<text x="272" y="175" font-size="14" opacity="0.5">🐾</text>
+  `;
+}
+
+const masterSVG = document.createElementNS('http://www.w3.org/2000/svg','svg');
+masterSVG.setAttribute('width', W); masterSVG.setAttribute('height', H);
+buildScene(masterSVG);
+document.body.appendChild(masterSVG);
+masterSVG.style.display = 'none';
+buildScene(document.getElementById('hintSVG'));
+const innerMarkup = masterSVG.innerHTML;
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let GRID = 4;
+let PS = 0;
+let draggedPiece = null, dragOffX = 0, dragOffY = 0, ghostEl = null;
+let correctCount = 0, totalPieces = 0;
+
+function pieceSize(g) { return Math.floor(W / g); }
+
+function makePieceSVG(row, col, g) {
+  const ps = pieceSize(g);
+  const vx = col * ps, vy = row * ps;
+  return `<svg width="${ps}" height="${ps}" viewBox="${vx} ${vy} ${ps} ${ps}" xmlns="http://www.w3.org/2000/svg">${innerMarkup}</svg>`;
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function initGame() {
+  PS = pieceSize(GRID);
+  correctCount = 0;
+  totalPieces = GRID * GRID;
+  updateProgress();
+
+  const grid = document.getElementById('grid');
+  const tray = document.getElementById('tray');
+  grid.innerHTML = ''; tray.innerHTML = '';
+
+  grid.style.gridTemplateColumns = `repeat(${GRID}, ${PS}px)`;
+  grid.style.gridTemplateRows    = `repeat(${GRID}, ${PS}px)`;
+
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      const zone = document.createElement('div');
+      zone.className = 'drop-zone';
+      zone.dataset.r = r; zone.dataset.c = c;
+      zone.style.width = zone.style.height = PS + 'px';
+      const ghost = document.createElement('div');
+      ghost.className = 'ghost';
+      ghost.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(makePieceSVG(r,c,GRID))}")`;
+      zone.appendChild(ghost);
+      grid.appendChild(zone);
+      zone.addEventListener('dragover', onDragOver);
+      zone.addEventListener('drop', onDrop);
+      zone.addEventListener('dragleave', e => { if(e.currentTarget===zone) zone.classList.remove('hover'); });
+    }
+  }
+
+  let positions = [];
+  for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) positions.push({r,c});
+  positions.sort(() => Math.random() - 0.5);
+
+  positions.forEach(({r,c}) => {
+    const p = document.createElement('div');
+    p.className = 'piece';
+    p.draggable = true;
+    p.dataset.r = r; p.dataset.c = c;
+    p.style.width = p.style.height = PS + 'px';
+    p.innerHTML = makePieceSVG(r, c, GRID);
+    p.addEventListener('dragstart', onDragStart);
+    p.addEventListener('dragend', onDragEnd);
+    p.addEventListener('touchstart', onTouchStart, {passive:false});
+    tray.appendChild(p);
+  });
+}
+
+function updateProgress() {
+  const pct = totalPieces ? (correctCount / totalPieces) * 100 : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ─── DRAG ────────────────────────────────────────────────────────────────────
+function onDragStart(e) {
+  draggedPiece = e.currentTarget;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain','');
+  setTimeout(() => draggedPiece && (draggedPiece.style.opacity = '.35'), 0);
+}
+function onDragEnd() {
+  if (draggedPiece) draggedPiece.style.opacity = '1';
+  document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('hover'));
+  draggedPiece = null;
+}
+function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('hover'); }
+function onDrop(e) {
+  e.preventDefault();
+  const zone = e.currentTarget;
+  zone.classList.remove('hover');
+  if (!draggedPiece || zone.dataset.filled === 'true') return;
+  placePiece(draggedPiece, zone);
+}
+
+// ─── TOUCH ───────────────────────────────────────────────────────────────────
+function onTouchStart(e) {
+  e.preventDefault();
+  draggedPiece = e.currentTarget;
+  const t = e.touches[0], rect = draggedPiece.getBoundingClientRect();
+  dragOffX = t.clientX - rect.left; dragOffY = t.clientY - rect.top;
+  ghostEl = draggedPiece.cloneNode(true);
+  ghostEl.style.cssText = `position:fixed;z-index:999;width:${PS}px;height:${PS}px;pointer-events:none;opacity:.85;left:${rect.left}px;top:${rect.top}px;border-radius:8px;`;
+  document.body.appendChild(ghostEl);
+  draggedPiece.style.opacity = '.3';
+  document.addEventListener('touchmove', onTouchMove, {passive:false});
+  document.addEventListener('touchend', onTouchEnd);
+}
+function onTouchMove(e) {
+  e.preventDefault();
+  const t = e.touches[0];
+  if (ghostEl) { ghostEl.style.left=(t.clientX-dragOffX)+'px'; ghostEl.style.top=(t.clientY-dragOffY)+'px'; }
+  document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('hover'));
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const zone = el && el.closest('.drop-zone');
+  if (zone) zone.classList.add('hover');
+}
+function onTouchEnd(e) {
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+  if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+  document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('hover'));
+  if (!draggedPiece) return;
+  const t = e.changedTouches[0];
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const zone = el && el.closest('.drop-zone');
+  if (zone && zone.dataset.filled !== 'true') placePiece(draggedPiece, zone);
+  else draggedPiece.style.opacity = '1';
+  draggedPiece = null;
+}
+
+// ─── PLACE ───────────────────────────────────────────────────────────────────
+function placePiece(piece, zone) {
+  const correct = (piece.dataset.r === zone.dataset.r && piece.dataset.c === zone.dataset.c);
+  zone.querySelector('.ghost')?.remove();
+  const clone = piece.cloneNode(true);
+  clone.style.cssText = `width:${PS}px;height:${PS}px;cursor:default;box-shadow:none;border:none;border-radius:7px;`;
+  clone.draggable = false;
+  zone.appendChild(clone);
+  piece.style.opacity = '1';
+  piece.remove();
+
+  if (correct) {
+    zone.classList.add('correct'); zone.classList.remove('wrong');
+    zone.dataset.filled = 'true';
+    zone.style.animation = 'pulse .35s ease';
+    correctCount++;
+    updateProgress();
+    if (correctCount === totalPieces) setTimeout(celebrate, 600);
+  } else {
+    zone.classList.add('wrong');
+    clone.draggable = true;
+    clone.addEventListener('dragstart', onDragStart);
+    clone.addEventListener('dragend', onDragEnd);
+    clone.addEventListener('touchstart', onTouchStart, {passive:false});
+    clone.style.cursor = 'grab';
+    clone.style.animation = 'shake .4s ease';
+  }
+}
+
+// ─── CELEBRATE ───────────────────────────────────────────────────────────────
+function celebrate() {
+  document.getElementById('cel').classList.add('show');
+  const items = ['🎉','⭐','🐾','🎊','✨','🌟','🥔'];
+  for (let i = 0; i < 30; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.textContent = items[Math.floor(Math.random()*items.length)];
+      el.style.left = (Math.random()*100)+'vw';
+      el.style.top = '-60px';
+      el.style.fontSize = (1.2+Math.random()*2)+'em';
+      el.style.animationDuration = (1+Math.random()*2)+'s';
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 3500);
+    }, i * 80);
+  }
+}
+
+// ─── HINT ────────────────────────────────────────────────────────────────────
+const hintOverlay = document.getElementById('hintOverlay');
+const hintBtn = document.getElementById('hintBtn');
+hintBtn.addEventListener('mousedown', ()=>hintOverlay.classList.add('show'));
+hintBtn.addEventListener('mouseup', ()=>hintOverlay.classList.remove('show'));
+hintBtn.addEventListener('touchstart', e=>{e.preventDefault();hintOverlay.classList.add('show');},{passive:false});
+hintBtn.addEventListener('touchend', ()=>hintOverlay.classList.remove('show'));
+hintOverlay.addEventListener('click', ()=>hintOverlay.classList.remove('show'));
+
+// ─── DIFFICULTY BUTTONS ──────────────────────────────────────────────────────
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    GRID = parseInt(btn.dataset.grid);
+    initGame();
+  });
+});
+
+// ─── REPLAY ──────────────────────────────────────────────────────────────────
+document.getElementById('replayBtn').addEventListener('click', ()=>{
+  document.getElementById('cel').classList.remove('show');
+  initGame();
+});
+
+// ─── BG DECO ─────────────────────────────────────────────────────────────────
+const icons = ['🐾','⭐','✨','🌟','🐶','🚒','🚑','🌈'];
+for (let i = 0; i < 12; i++) {
+  const el = document.createElement('div');
+  el.className = 'bg-deco';
+  el.textContent = icons[Math.floor(Math.random()*icons.length)];
+  el.style.left = (Math.random()*100)+'vw';
+  el.style.top = (Math.random()*100)+'vh';
+  el.style.fontSize = (1.2+Math.random()*1.5)+'em';
+  el.style.animationDuration = (12+Math.random()*20)+'s';
+  el.style.animationDelay = (Math.random()*15)+'s';
+  document.body.appendChild(el);
+}
+
+initGame();
+</script>
+</body>
+</html>
